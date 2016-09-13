@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8"/>
+    <title>验证码</title>
+    <meta name="description" content=""/>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no, minimal-ui"/>
+    <meta name="format-detection" content="telephone=no">
+    <meta name="format-detection" content="email=no"/>
+</head>
+<body>
+<style>
+    * {
+        margin: 0;
+        padding: 0
+    }
+
+    .container {
+        width: 320px;
+        margin: 10px auto;
+        text-align: center;
+        font-size: 16px;;
+    }
+
+    h2 {
+        margin-bottom: 20px;
+    }
+
+    .container img {
+        width: 130px;
+        height: 53px;
+    }
+
+    .container input {
+        width: 100px;
+        height: 53px;
+        vertical-align: 22px;
+        font-size: 18px;
+        text-align: center
+    }
+
+    .container .submit {
+        background: #ff8000;
+        display: block;
+        width: 100px;
+        line-height: 40px;
+        color: #ffffff;
+        margin: 20px auto;
+    }
+</style>
+<div class="container">
+    <h2>
+        请输入下方图形验证码
+    </h2>
+    <input type="text" id="J_input"/>
+    <img src="" id="J_code"/>
+    <br/>
+    <a class="submit" id="J_submit" href="javascript:void(0)">提交</a>
+</div>
+
+<script>
+
+    (function () {
+        var img = document.getElementById("J_code");
+        var input = document.getElementById("J_input");
+        var submitBtn = document.getElementById("J_submit");
+        var sig;
+        var globalCount = 0;
+        var urlStringify = function (url, data) {
+            if (!data) {
+                return url;
+            }
+            var param = [];
+            for (var o in data) {
+                if (data.hasOwnProperty(o)) {
+                    param.push(o + "=" + data[o]);
+                }
+            }
+            return ~url.indexOf("?") ? url+"&" + param.join("&") : url + "?" + param.join("&");
+        };
+        var back = function (uuid) {
+            var backUrlMatch = location.href.match(/returl=([^&$]+)/);
+            if (backUrlMatch) {
+                location.href = urlStringify(decodeURIComponent(backUrlMatch[1]), {uuid: uuid})
+            } else {
+                location.href = urlStringify(document.referrer, {uuid: uuid});
+            }
+
+        };
+
+        var request = function (options) {
+
+            if (!options.url) {
+                throw new Error("url request!");
+            }
+            var data = options.data || {};
+            var cb = options.onSuc || function () {
+            };
+            var cbName = data.callback = "EasyLoginCallBack" + (++globalCount);
+
+            var script = document.createElement("script");
+            script.src = urlStringify(options.url, data);
+
+            window[cbName] = function (res) {
+                delete window[cbName];
+                script.parentNode.removeChild(script);
+                cb(res);
+            };
+
+            document.getElementsByTagName("head")[0].appendChild(script);
+        };
+
+        var domain = ~location.href.indexOf(".dianping") ? "http://m.dianping.com" : "http://m.51ping.com";
+
+
+        var requestImg = function () {
+            request({
+                url: domain + "/account/ajax/getCaptcha",
+                onSuc: function (res) {
+                    if (res.code == 200) {
+                        img.src = res.msg.url;
+                        sig = res.msg.signature;
+                    } else {
+                        if (res.msg && res.msg.err) {
+                            alert(res.msg.err);
+                        }
+                    }
+                }
+            });
+        };
+        requestImg();
+
+        img.onclick = requestImg;
+        submitBtn.onclick = function () {
+            var code = input.value;
+            if (code) {
+                request({
+                    url: domain + "/account/ajax/checkCaptcha",
+                    data: {
+                        vcode: code,
+                        signature: sig
+                    },
+                    onSuc: function (res) {
+                        if (res.code == 200) {
+                            back(res.msg.uuid);
+                        } else {
+                            alert("验证失败");
+                            requestImg();
+                        }
+                    }
+                });
+            } else {
+                alert("请输入验证码");
+            }
+        }
+
+
+    })();
+
+
+</script>
+</body>
+
+</html>
